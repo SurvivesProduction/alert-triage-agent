@@ -1,0 +1,270 @@
+{
+  "name": "Alert Triage Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "alert-triage",
+        "options": {}
+      },
+      "id": "d4bf2ca4-4087-4a3e-ad87-7a8548d4fe5d",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -2112,
+        -320
+      ],
+      "webhookId": "e3809830-2cfd-4980-a55c-b8c923787f7c"
+    },
+    {
+      "parameters": {
+        "jsCode": "// PLACEHOLDER — replace this node with a real OpenAI / Anthropic node.\n// See n8n_build_guide.md, Build Section 2, step 5, for the exact system prompt.\n// This stub returns a mock classification so the rest of the workflow can be\n// tested end-to-end before you wire up a real AI node + credential.\nconst alert = $input.first().json.body;\n\nlet severity = 'real_issue';\nif ((alert.environment || '').toLowerCase() === 'staging' || (alert.error_rate === 0)) {\n  severity = 'noise';\n} else if ((alert.severity_hint || '').toLowerCase() === 'critical') {\n  severity = 'critical';\n}\n\nreturn [{\n  json: {\n    ...alert,\n    severity,\n    summary: `[MOCK] ${alert.alert_name || 'Alert'} on ${alert.service || 'unknown service'}`,\n    first_step: '[MOCK] Replace this Code node with a real AI classification node.'\n  }\n}];"
+      },
+      "id": "1ada6f6b-e385-43dd-b447-57f27fc27181",
+      "name": "Classify Alert (REPLACE WITH AI NODE)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1872,
+        -320
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enrich: merge classification output with a runbook link per service.\nconst item = $input.first().json;\n\nconst runbooks = {\n  'orders-db': '[FILL IN: runbook URL]',\n  'checkout-api': '[FILL IN: runbook URL]',\n  'batch-worker': '[FILL IN: runbook URL]'\n};\n\nreturn [{\n  json: {\n    ...item,\n    runbook_url: runbooks[item.service] || '[FILL IN: default runbook URL]'\n  }\n}];"
+      },
+      "id": "04ac226e-3bb8-4f8c-8cab-77e9a4fbdbcd",
+      "name": "Enrich",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1632,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.severity}}",
+                    "rightValue": "noise",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "noise"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.severity}}",
+                    "rightValue": "real_issue",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "real_issue"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.severity}}",
+                    "rightValue": "critical",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "critical"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7f75926f-6a7b-45bd-bcc0-05159dbbfa13",
+      "name": "Route by severity",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -1392,
+        -320
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "6f5c98cc-2cf4-4c5c-8803-6de76a0e9c84",
+      "name": "Quiet Log",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -1120,
+        -512
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "alerts-demo",
+          "mode": "name"
+        },
+        "text": "=*{{$json.alert_name}}* on `{{$json.service}}` ({{$json.environment}})\n> {{$json.summary}}\n*First step:* {{$json.first_step}}\n<{{$json.runbook_url}}|Runbook>",
+        "otherOptions": {}
+      },
+      "id": "f8f231fe-a7dd-4ab9-92d3-d0dba7c989b8",
+      "name": "Post Summary",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        -1120,
+        -320
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "9d580782-f7db-4d34-8863-27cc8b8e232f"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "alerts-demo",
+          "mode": "name"
+        },
+        "text": "=<!here> *CRITICAL* — {{$json.alert_name}} on `{{$json.service}}`\n> {{$json.summary}}\n*First step:* {{$json.first_step}}\n<{{$json.runbook_url}}|Runbook>",
+        "otherOptions": {}
+      },
+      "id": "96f10bcd-2356-402e-9446-8d15c535bf8a",
+      "name": "Post Escalation",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        -1120,
+        -144
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "webhookId": "903fda44-8108-47a3-8d71-cd3c0419da2d"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Classify Alert (REPLACE WITH AI NODE)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Alert (REPLACE WITH AI NODE)": {
+      "main": [
+        [
+          {
+            "node": "Enrich",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich": {
+      "main": [
+        [
+          {
+            "node": "Route by severity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by severity": {
+      "main": [
+        [
+          {
+            "node": "Quiet Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Post Summary",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Post Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "errorWorkflow": "xdIcocLXi2NdSXk4"
+  },
+  "versionId": "01a27ca1-12a2-45f6-ac56-a1822b520488",
+  "meta": {
+    "instanceId": "36e0e7c3cb9f83d309082d8fb21741f1fb28b98b6769a1b1e7a465518632041e"
+  },
+  "nodeGroups": [],
+  "id": "YskUyNsYmC32HjG5",
+  "tags": []
+}
