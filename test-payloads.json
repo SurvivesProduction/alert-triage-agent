@@ -1,0 +1,39 @@
+{
+  "p1_database_down": {
+    "source": "demo-monitoring",
+    "alert_name": "PostgreSQL primary unreachable",
+    "severity_hint": "critical",
+    "service": "orders-db",
+    "environment": "production",
+    "message": "Connection refused on primary db host db-prod-01 (10.0.2.14:5432). Replica lag unknown. 100% of write traffic failing.",
+    "error_rate": 1.0,
+    "timestamp": "2026-07-18T03:04:00Z"
+  },
+  "p2_error_rate_spike": {
+    "source": "demo-monitoring",
+    "alert_name": "HTTP 5xx rate above threshold",
+    "severity_hint": "warning",
+    "service": "checkout-api",
+    "environment": "production",
+    "message": "5xx error rate at 7.4% over last 10 minutes (threshold 5%). Latency p95 up 40%. Deploy abc123 completed 14 minutes ago.",
+    "error_rate": 0.074,
+    "timestamp": "2026-07-18T14:22:00Z"
+  },
+  "noise_staging_alert": {
+    "source": "demo-monitoring",
+    "alert_name": "Disk usage above 80%",
+    "severity_hint": "info",
+    "service": "batch-worker",
+    "environment": "staging",
+    "message": "Disk usage on staging-worker-03 at 81%. No production impact. Autoscaling cleanup scheduled.",
+    "error_rate": 0,
+    "timestamp": "2026-07-18T09:00:00Z"
+  },
+  "heartbeat": {
+    "source": "alert-triage-agent",
+    "alert_name": "heartbeat",
+    "message": "agent alive",
+    "timestamp": "2026-07-18T00:00:00Z"
+  },
+  "_note": "All data simulated for the Survives Production demo. Send with: curl -X POST <webhook-url> -H 'Content-Type: application/json' -d '<one of the objects above>'"
+}
